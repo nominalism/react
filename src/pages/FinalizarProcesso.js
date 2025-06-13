@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Table, Button, Alert, Spinner, Container } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { processoSeletivoService } from '../services/api';
+import { processoSeletivoService, etapaService } from '../services/api';
 
 function FinalizarProcesso() {
   const [processos, setProcessos] = useState([]);
@@ -39,20 +39,47 @@ function FinalizarProcesso() {
     }
   };
 
-  useEffect(() => {
-    const carregarProcessos = async () => {
-      setLoading(true);
-      try {
-        const res = await processoSeletivoService.findAll();
-        setProcessos(res.data);
-      } catch {
-        setError('Erro ao carregar processos.');
-      } finally {
-        setLoading(false);
+  const carregarDados = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [processosRes, etapasRes] = await Promise.all([
+        processoSeletivoService.findAll(),
+        etapaService.findAll()
+      ]);
+
+      const processosData = processosRes.data || [];
+      const etapasData = etapasRes.data || [];
+
+      const processosComEtapasIds = new Set();
+      if (Array.isArray(etapasData)) {
+        etapasData.forEach(etapa => {
+          if (etapa.processo_seletivo_id) {
+            processosComEtapasIds.add(etapa.processo_seletivo_id);
+          } else if (etapa.processoSeletivo && typeof etapa.processoSeletivo === 'object' && etapa.processoSeletivo.id) {
+            processosComEtapasIds.add(etapa.processoSeletivo.id);
+          } else if (etapa.processoSeletivoId) {
+            processosComEtapasIds.add(etapa.processoSeletivoId);
+          }
+        });
       }
-    };
-    carregarProcessos();
+
+      const processosFiltrados = processosData.filter(processo =>
+        processo.status === 'EM_ANDAMENTO' && processosComEtapasIds.has(processo.id)
+      );
+
+      setProcessos(processosFiltrados);
+    } catch (err) {
+      console.error("Erro ao carregar dados para finalizar processos:", err);
+      setError('Erro ao carregar dados. Verifique o console para mais detalhes ou se o serviço de etapas está configurado corretamente.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    carregarDados();
+  }, [carregarDados]);
 
   if (loading) return <div className="text-center mt-5"><Spinner animation="border" /></div>;
   if (error) return <Alert variant="danger" className="mt-4">{error}</Alert>;
@@ -72,7 +99,7 @@ function FinalizarProcesso() {
           </tr>
         </thead>
         <tbody>
-          {processos.filter(processo => processo.status === 'EM_ANDAMENTO').map((processo, idx) => (
+          {processos.map((processo, idx) => (
             <tr key={processo.id} style={{ background: idx % 2 === 0 ? '#a78bfa' : '#ede9fe', height: 52 }}>
               <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{processo.id}</td>
               <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{processo.nome}</td>
@@ -102,4 +129,4 @@ function FinalizarProcesso() {
   );
 }
 
-export default FinalizarProcesso; 
+export default FinalizarProcesso;

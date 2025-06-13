@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Row, Col } from 'react-bootstrap';
 import { FaListOl, FaUserCheck, FaClipboardList, FaBuilding, FaChartBar, FaLayerGroup } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 
 const relatorios = [
   {
@@ -54,34 +55,36 @@ function Relatorios() {
       <Row xs={1} sm={2} md={3} className="g-4 justify-content-center">
         {relatorios.map((rel, idx) => (
           <Col key={idx} className="d-flex align-items-stretch">
-            <Card
-              style={{
-                background: rel.gradient,
-                color: '#fff',
-                border: 'none',
-                borderRadius: 18,
-                boxShadow: '0 4px 24px rgba(162,89,198,0.15)',
-                minHeight: 220,
-                transition: 'transform 0.18s, box-shadow 0.18s',
-                cursor: 'pointer',
-                overflow: 'hidden',
-              }}
-              className="w-100 relatorio-card"
-              onClick={() => window.location.href = rel.href}
-              onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-6px) scale(1.03)'; e.currentTarget.style.boxShadow = '0 8px 32px #a78bfa55'; }}
-              onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(162,89,198,0.15)'; }}
-            >
-              <Card.Body className="d-flex flex-column align-items-center justify-content-center text-center p-4">
-                <div style={{ marginBottom: 18 }}>{rel.icon}</div>
-                <Card.Title style={{ fontSize: 22, fontWeight: 700, marginBottom: 10 }}>{rel.title}</Card.Title>
-                <Card.Text style={{ fontSize: 16, opacity: 0.93 }}>{rel.text}</Card.Text>
-                <div style={{ marginTop: 18 }}>
-                  <span style={{ background: '#fff', color: '#7c3aed', borderRadius: 8, padding: '6px 18px', fontWeight: 700, fontSize: 15, boxShadow: '0 2px 8px #a78bfa22' }}>
-                    Gerar Relatório
-                  </span>
-                </div>
-              </Card.Body>
-            </Card>
+            <Link to={rel.href} style={{ textDecoration: 'none', width: '100%' }}>
+              <Card
+                style={{
+                  background: rel.gradient,
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 18,
+                  boxShadow: '0 4px 24px rgba(162,89,198,0.15)',
+                  minHeight: 220,
+                  transition: 'transform 0.18s, box-shadow 0.18s',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  width: '100%'
+                }}
+                className="w-100 relatorio-card"
+                onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-6px) scale(1.03)'; e.currentTarget.style.boxShadow = '0 8px 32px #a78bfa55'; }}
+                onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(162,89,198,0.15)'; }}
+              >
+                <Card.Body className="d-flex flex-column align-items-center justify-content-center text-center p-4">
+                  <div style={{ marginBottom: 18 }}>{rel.icon}</div>
+                  <Card.Title style={{ fontSize: 22, fontWeight: 700, marginBottom: 10 }}>{rel.title}</Card.Title>
+                  <Card.Text style={{ fontSize: 16, opacity: 0.93 }}>{rel.text}</Card.Text>
+                  <div style={{ marginTop: 18 }}>
+                    <span style={{ background: '#fff', color: '#7c3aed', borderRadius: 8, padding: '6px 18px', fontWeight: 700, fontSize: 15, boxShadow: '0 2px 8px #a78bfa22' }}>
+                      Gerar Relatório
+                    </span>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Link>
           </Col>
         ))}
       </Row>
@@ -89,4 +92,4 @@ function Relatorios() {
   );
 }
 
-export default Relatorios; 
+export default Relatorios;
