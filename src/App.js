@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -33,7 +33,7 @@ import RelatorioContratacoesPorArea from './pages/RelatorioContratacoesPorArea';
 
 function App() {
   return (
-    <Router basename="/react">
+    <Router>
       <div className="app-container">
         <Navbar />
         <div className="main-content">
