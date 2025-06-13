@@ -33,7 +33,7 @@ import RelatorioContratacoesPorArea from './pages/RelatorioContratacoesPorArea';
 
 function App() {
   return (
-    <Router>
+    <Router basename="/react">
       <div className="app-container">
         <Navbar />
         <div className="main-content">
