@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Alert, Spinner, Form, InputGroup, Button } from 'react-bootstrap';
+import { Table, Alert, Spinner, Form, InputGroup, Button, Row, Col } from 'react-bootstrap';
 import { areaService } from '../services/api';
 import { FaSearch } from 'react-icons/fa';
 
@@ -11,16 +11,23 @@ function RelatorioContratacoesPorArea() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [areas, setAreas] = useState([]);
+  const [filtroArea, setFiltroArea] = useState('');
+  const [filtroCurso, setFiltroCurso] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
+        const areasRes = await areaService.findAll();
+        setAreas(areasRes.data || []);
+
         const res = await areaService.findContratacoesPorArea();
-        setDados(res.data);
+        setDados(res.data || []);
       } catch (err) {
-        setError('Erro ao buscar relatório de contratações por área.');
+        console.error("Erro ao buscar dados para Relatório Contratações por Área:", err);
+        setError('Erro ao buscar dados. Verifique o console.');
       } finally {
         setLoading(false);
       }
@@ -28,11 +35,16 @@ function RelatorioContratacoesPorArea() {
     fetchData();
   }, []);
 
-  // Busca e paginação
-  const filtered = dados.filter(item =>
-    (typeof item.area_nome === 'string' ? item.area_nome.toLowerCase() : '').includes(search.toLowerCase()) ||
-    (typeof item.curso === 'string' ? item.curso.toLowerCase() : '').includes(search.toLowerCase())
-  );
+  const filtered = dados.filter(item => {
+    const searchLower = search.toLowerCase();
+    const cursoLower = filtroCurso.toLowerCase();
+
+    const matchesSearch = searchLower ? (typeof item.area_nome === 'string' ? item.area_nome.toLowerCase().includes(searchLower) : false) : true;
+    const matchesArea = filtroArea ? item.area_id?.toString() === filtroArea : true;
+    const matchesCurso = filtroCurso ? (typeof item.curso === 'string' ? item.curso.toLowerCase().includes(cursoLower) : false) : true;
+
+    return matchesSearch && matchesArea && matchesCurso;
+  });
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -46,17 +58,45 @@ function RelatorioContratacoesPorArea() {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: 32 }}>
       <h2 style={{ textAlign: 'center', marginBottom: 32, fontSize: 32, fontWeight: 700 }}>Contratações por Área</h2>
-      <InputGroup className="mb-4" style={{ maxWidth: 500, margin: '0 auto' }}>
-        <Form.Control
-          style={{ fontSize: 18, padding: '12px 16px' }}
-          placeholder="Buscar..."
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-        />
-        <Button variant="outline-secondary" disabled style={{ fontSize: 20 }}>
-          <FaSearch />
-        </Button>
-      </InputGroup>
+      <Row className="mb-4">
+        <Col md={4}>
+          <InputGroup>
+            <Form.Control
+              style={{ fontSize: 18, padding: '12px 16px' }}
+              placeholder="Buscar por nome da área..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+            />
+            <Button variant="outline-secondary" disabled style={{ fontSize: 20 }}>
+              <FaSearch />
+            </Button>
+          </InputGroup>
+        </Col>
+        <Col md={4}>
+          <Form.Group controlId="filtroArea">
+            <Form.Select
+              aria-label="Filtrar por Área"
+              value={filtroArea}
+              onChange={e => { setFiltroArea(e.target.value); setPage(1); }}
+              style={{ fontSize: 18, padding: '12px 16px', height: 'calc(2.25rem + 28px)' }}
+            >
+              <option value="">Todas as Áreas</option>
+              {areas.map(area => <option key={area.id} value={area.id}>{area.nome}</option>)}
+            </Form.Select>
+          </Form.Group>
+        </Col>
+        <Col md={4}>
+          <Form.Group controlId="filtroCurso">
+            <Form.Control
+              type="text"
+              placeholder="Filtrar por Curso..."
+              value={filtroCurso}
+              onChange={e => { setFiltroCurso(e.target.value); setPage(1); }}
+              style={{ fontSize: 18, padding: '12px 16px', height: 'calc(2.25rem + 28px)' }}
+            />
+          </Form.Group>
+        </Col>
+      </Row>
       <div style={{ borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 12px #e0e0e0' }}>
         <Table hover responsive style={{ marginBottom: 0, fontSize: 20, minWidth: 900 }}>
           <thead style={{ background: '#7c3aed', color: '#fff' }}>
@@ -72,11 +112,10 @@ function RelatorioContratacoesPorArea() {
                 <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{item.area_nome}</td>
                 <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{item.curso}</td>
                 <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{item.total_contratacoes}</td>
-                <td></td>
               </tr>
             ))}
             {paginated.length === 0 && (
-              <tr><td colSpan={4} className="text-center">Nenhum resultado encontrado.</td></tr>
+              <tr><td colSpan={3} className="text-center">Nenhum resultado encontrado.</td></tr>
             )}
           </tbody>
         </Table>

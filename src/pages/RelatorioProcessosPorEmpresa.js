@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Alert, Button, Spinner, Form, InputGroup } from 'react-bootstrap';
-import { processoSeletivoService } from '../services/api';
+import { Table, Alert, Button, Spinner, Form, InputGroup, Row, Col } from 'react-bootstrap';
+import { processoSeletivoService, empresaService } from '../services/api';
 import { FaSearch } from 'react-icons/fa';
 
 const PAGE_SIZE = 7;
@@ -11,16 +11,24 @@ function RelatorioProcessosPorEmpresa() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [empresas, setEmpresas] = useState([]);
+  const [filtroEmpresa, setFiltroEmpresa] = useState('');
+  const [filtroEmAndamento, setFiltroEmAndamento] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await processoSeletivoService.findProcessosPorEmpresa();
-        setDados(res.data);
+        const [processosRes, empresasRes] = await Promise.all([
+          processoSeletivoService.findProcessosPorEmpresa(),
+          empresaService.findAll()
+        ]);
+        setDados(processosRes.data || []);
+        setEmpresas(empresasRes.data || []);
       } catch (err) {
-        setError('Erro ao buscar relatório de processos por empresa.');
+        console.error("Erro ao buscar dados para Relatório Processos por Empresa:", err);
+        setError('Erro ao buscar dados. Verifique o console.');
       } finally {
         setLoading(false);
       }
@@ -28,10 +36,20 @@ function RelatorioProcessosPorEmpresa() {
     fetchData();
   }, []);
 
-  // Busca e paginação
-  const filtered = dados.filter(item =>
-    (typeof item.empresa_nome === 'string' ? item.empresa_nome.toLowerCase() : '').includes(search.toLowerCase())
-  );
+  const filtered = dados.filter(item => {
+    const searchLower = search.toLowerCase();
+    const matchesSearch = searchLower ? (typeof item.empresa_nome === 'string' ? item.empresa_nome.toLowerCase().includes(searchLower) : false) : true;
+    const matchesEmpresa = filtroEmpresa ? item.empresa_id?.toString() === filtroEmpresa : true;
+
+    let matchesEmAndamento = true;
+    if (filtroEmAndamento === 'sim') {
+      matchesEmAndamento = item.processos_em_andamento > 0;
+    } else if (filtroEmAndamento === 'nao') {
+      matchesEmAndamento = item.processos_em_andamento === 0;
+    }
+
+    return matchesSearch && matchesEmpresa && matchesEmAndamento;
+  });
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -45,17 +63,48 @@ function RelatorioProcessosPorEmpresa() {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: 32 }}>
       <h2 style={{ textAlign: 'center', marginBottom: 32, fontSize: 32, fontWeight: 700 }}>Processos Seletivos por Empresa</h2>
-      <InputGroup className="mb-4" style={{ maxWidth: 500, margin: '0 auto' }}>
-        <Form.Control
-          style={{ fontSize: 18, padding: '12px 16px' }}
-          placeholder="Buscar..."
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-        />
-        <Button variant="outline-secondary" disabled style={{ fontSize: 20 }}>
-          <FaSearch />
-        </Button>
-      </InputGroup>
+      <Row className="mb-4">
+        <Col md={4}>
+          <InputGroup>
+            <Form.Control
+              style={{ fontSize: 18, padding: '12px 16px' }}
+              placeholder="Buscar por nome da empresa..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+            />
+            <Button variant="outline-secondary" disabled style={{ fontSize: 20 }}>
+              <FaSearch />
+            </Button>
+          </InputGroup>
+        </Col>
+        <Col md={4}>
+          <Form.Group controlId="filtroEmpresa">
+            <Form.Select
+              aria-label="Filtrar por Empresa"
+              value={filtroEmpresa}
+              onChange={e => { setFiltroEmpresa(e.target.value); setPage(1); }}
+              style={{ fontSize: 18, padding: '12px 16px', height: 'calc(2.25rem + 28px)' }}
+            >
+              <option value="">Todas as Empresas</option>
+              {empresas.map(emp => <option key={emp.id} value={emp.id}>{emp.nome}</option>)}
+            </Form.Select>
+          </Form.Group>
+        </Col>
+        <Col md={4}>
+          <Form.Group controlId="filtroEmAndamento">
+            <Form.Select
+              aria-label="Filtrar por Processos em Andamento"
+              value={filtroEmAndamento}
+              onChange={e => { setFiltroEmAndamento(e.target.value); setPage(1); }}
+              style={{ fontSize: 18, padding: '12px 16px', height: 'calc(2.25rem + 28px)' }}
+            >
+              <option value="">Todos (Em Andamento)</option>
+              <option value="sim">Sim</option>
+              <option value="nao">Não</option>
+            </Form.Select>
+          </Form.Group>
+        </Col>
+      </Row>
       <div style={{ borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 12px #e0e0e0' }}>
         <Table hover responsive style={{ marginBottom: 0, fontSize: 20, minWidth: 900 }}>
           <thead style={{ background: '#7c3aed', color: '#fff' }}>
@@ -66,7 +115,6 @@ function RelatorioProcessosPorEmpresa() {
               <th style={{ textAlign: 'center', fontWeight: 700, fontSize: 22 }}>Concluídos</th>
               <th style={{ textAlign: 'center', fontWeight: 700, fontSize: 22 }}>Cancelados</th>
               <th style={{ textAlign: 'center', fontWeight: 700, fontSize: 22 }}>Não Iniciados</th>
-
             </tr>
           </thead>
           <tbody>
@@ -78,11 +126,10 @@ function RelatorioProcessosPorEmpresa() {
                 <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{item.processos_concluidos}</td>
                 <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{item.processos_cancelados}</td>
                 <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{item.processos_nao_iniciados}</td>
-                <td></td>
               </tr>
             ))}
             {paginated.length === 0 && (
-              <tr><td colSpan={7} className="text-center">Nenhum resultado encontrado.</td></tr>
+              <tr><td colSpan={6} className="text-center">Nenhum resultado encontrado.</td></tr>
             )}
           </tbody>
         </Table>

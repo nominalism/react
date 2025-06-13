@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Alert, Spinner, Form, InputGroup, Button } from 'react-bootstrap';
-import { candidaturaService } from '../services/api';
+import { Table, Alert, Spinner, Form, InputGroup, Button, Row, Col } from 'react-bootstrap';
+import { candidaturaService, empresaService } from '../services/api';
 import { FaSearch } from 'react-icons/fa';
 
 const PAGE_SIZE = 7;
@@ -11,16 +11,23 @@ function RelatorioContratacoesPorEmpresa() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [empresas, setEmpresas] = useState([]);
+  const [filtroEmpresa, setFiltroEmpresa] = useState('');
+  const [filtroCnpj, setFiltroCnpj] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
+        const empresasRes = await empresaService.findAll();
+        setEmpresas(empresasRes.data || []);
+
         const res = await candidaturaService.findContratacoesPorEmpresa();
-        setDados(res.data);
+        setDados(res.data || []);
       } catch (err) {
-        setError('Erro ao buscar relatório de contratações por empresa.');
+        console.error("Erro ao buscar dados para Relatório Contratações por Empresa:", err);
+        setError('Erro ao buscar dados. Verifique o console.');
       } finally {
         setLoading(false);
       }
@@ -28,11 +35,16 @@ function RelatorioContratacoesPorEmpresa() {
     fetchData();
   }, []);
 
-  // Busca e paginação
-  const filtered = dados.filter(item =>
-    (typeof item.empresa_nome === 'string' ? item.empresa_nome.toLowerCase() : '').includes(search.toLowerCase()) ||
-    (typeof item.cnpj === 'string' ? item.cnpj.toLowerCase() : '').includes(search.toLowerCase())
-  );
+  const filtered = dados.filter(item => {
+    const searchLower = search.toLowerCase();
+    const cnpjLower = filtroCnpj.toLowerCase();
+
+    const matchesSearch = searchLower ? (typeof item.empresa_nome === 'string' ? item.empresa_nome.toLowerCase().includes(searchLower) : false) : true;
+    const matchesEmpresa = filtroEmpresa ? item.empresa_id?.toString() === filtroEmpresa : true;
+    const matchesCnpj = filtroCnpj ? (typeof item.cnpj === 'string' ? item.cnpj.toLowerCase().includes(cnpjLower) : false) : true;
+
+    return matchesSearch && matchesEmpresa && matchesCnpj;
+  });
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -46,17 +58,45 @@ function RelatorioContratacoesPorEmpresa() {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: 32 }}>
       <h2 style={{ textAlign: 'center', marginBottom: 32, fontSize: 32, fontWeight: 700 }}>Contratações por Empresa</h2>
-      <InputGroup className="mb-4" style={{ maxWidth: 500, margin: '0 auto' }}>
-        <Form.Control
-          style={{ fontSize: 18, padding: '12px 16px' }}
-          placeholder="Buscar..."
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-        />
-        <Button variant="outline-secondary" disabled style={{ fontSize: 20 }}>
-          <FaSearch />
-        </Button>
-      </InputGroup>
+      <Row className="mb-4">
+        <Col md={4}>
+          <InputGroup>
+            <Form.Control
+              style={{ fontSize: 18, padding: '12px 16px' }}
+              placeholder="Buscar por nome da empresa..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+            />
+            <Button variant="outline-secondary" disabled style={{ fontSize: 20 }}>
+              <FaSearch />
+            </Button>
+          </InputGroup>
+        </Col>
+        <Col md={4}>
+          <Form.Group controlId="filtroEmpresa">
+            <Form.Select
+              aria-label="Filtrar por Empresa"
+              value={filtroEmpresa}
+              onChange={e => { setFiltroEmpresa(e.target.value); setPage(1); }}
+              style={{ fontSize: 18, padding: '12px 16px', height: 'calc(2.25rem + 28px)' }}
+            >
+              <option value="">Todas as Empresas</option>
+              {empresas.map(emp => <option key={emp.id} value={emp.id}>{emp.nome}</option>)}
+            </Form.Select>
+          </Form.Group>
+        </Col>
+        <Col md={4}>
+          <Form.Group controlId="filtroCnpj">
+            <Form.Control
+              type="text"
+              placeholder="Filtrar por CNPJ..."
+              value={filtroCnpj}
+              onChange={e => { setFiltroCnpj(e.target.value); setPage(1); }}
+              style={{ fontSize: 18, padding: '12px 16px', height: 'calc(2.25rem + 28px)' }}
+            />
+          </Form.Group>
+        </Col>
+      </Row>
       <div style={{ borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 12px #e0e0e0' }}>
         <Table hover responsive style={{ marginBottom: 0, fontSize: 20, minWidth: 900 }}>
           <thead style={{ background: '#7c3aed', color: '#fff' }}>
@@ -72,11 +112,10 @@ function RelatorioContratacoesPorEmpresa() {
                 <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{item.empresa_nome}</td>
                 <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{item.cnpj}</td>
                 <td style={{ verticalAlign: 'middle', textAlign: 'center' }}>{item.total_contratacoes}</td>
-                <td></td>
               </tr>
             ))}
             {paginated.length === 0 && (
-              <tr><td colSpan={4} className="text-center">Nenhum resultado encontrado.</td></tr>
+              <tr><td colSpan={3} className="text-center">Nenhum resultado encontrado.</td></tr>
             )}
           </tbody>
         </Table>
